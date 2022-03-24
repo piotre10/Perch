@@ -92,11 +92,14 @@ class Position:
                 if len(captures) == 0:
                     continue
                 for capture in captures:
-                    jumps = self.possible_jumps(capture[0][1], self.matrix[y][x])
+                    temp = copy.deepcopy(self)
+                    temp.move(capture[0],capture[1])
+                    jumps = temp.possible_jumps(capture[0][1], self.matrix[y][x])
                     for jump in jumps:
-                        new_capture = [capture[0][0], jump[0][1], capture[1]+jump[1]]
+                        new_capture = [[capture[0][0], jump[0][1]], capture[1]+jump[1]]
                         captures.append(new_capture)
-                    captures.remove(capture)
+                    if len(jumps) != 0:
+                        captures.remove(capture)
 
                 capture_list.extend(captures)
 
