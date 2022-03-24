@@ -213,6 +213,13 @@ class Position:
 
         return -1
 
+
+    def get_as_vector(self):
+        res = [self.whos_move]
+        res.extend([tile for row in self.matrix for tile in row])
+        return res
+
+
     @classmethod
     def is_on_same_diagonal(cls, pos1, pos2):  # pos are tuples as dicriebed above
         #  returns 1 or 2 if true (depending on direction diagonal is pointing) 0 if false
