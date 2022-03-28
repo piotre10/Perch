@@ -10,18 +10,22 @@ class Player:
         pass
 
 
-class RandomPlayer(Player):
+class RandomPlayer(Player):  # 4800 moves/s
 
     def __init__(self):
         pass
 
     def choose_move(self, position: Position):
         moves = position.valid_moves()
+        if len(moves) == 0:
+            return None
         if len(moves) == 1:
             return moves[0]
         return moves[random.randint(0, len(moves)-1)]
 
+
 EPS = 0.5
+
 
 def add_bias_term(matrix: np.array):
     """ Takes np matrix and adds bias term vector of 1's (horizontal) at the start of it """
@@ -42,11 +46,10 @@ def vectorize_positions(pos_list: list) -> np.array:
     return res
 
 
-class Perch1(Player):
+class Perch1(Player):  # around 3300 moves/s on depth 1
     # First layer - 8 x 34
     # Second layer - 8 x 9
     # Third layer - 1 x 9
-
 
     def __init__(self, layers = None):
         if layers is None:
@@ -61,17 +64,21 @@ class Perch1(Player):
     def choose_move(self, position: Position): # Need moves[best] won't work (wrong type fix later)
         positions = []
         moves = position.valid_moves()
+        if len(moves) == 0:
+            return None
+        if len(moves) == 1:
+            return moves[0]
         for mv in moves:
             temp = position
             temp.move(mv[0], mv[1])
-            positions.append(temp)
-        evals = self.eval_positions(positions)
+            positions.append(temp.get_as_vector())
+        positions = np.array(positions)
+        evals = self.eval_positions(positions.T)
         if position.whos_move == 1:
-            best = np.where(evals == np.amax(evals))
+            best = np.argmax(evals)
         else:
-            best = np.where(evals == np.amin(evals))
+            best = np.argmin(evals)
         return moves[best]
-
 
     def eval_positions(self, positions_matrix: np.array):
         ''' input: matrix 33 x n of n vectorized positions'''
@@ -85,6 +92,7 @@ class Perch1(Player):
         return eval
 
     def process_input(self, inp: np.array):
+        inp = add_bias_term(inp)
         t1 = sigmoid(np.matmul(self.FirstLayer, inp))
         t1 = add_bias_term(t1)
         t2 = sigmoid(np.matmul(self.SecondLayer, t1))

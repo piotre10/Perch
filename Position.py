@@ -1,5 +1,6 @@
 import copy
 from math import copysign
+import random
 
 STARTING_POS = [[1, 1, 1, 1],
                 [1, 1, 1, 1],
@@ -29,6 +30,10 @@ class Position:
 
     def __str__(self):
         return str(self.whos_move) + ' ' + str(self.twenty_move_rule) + '\n' + str(self.matrix)
+
+    def randomize(self):
+        self.matrix = [[random.randint(0,4)*random.randint(0,1) for i in range(0,4)] for j in range(0,8)]
+        self.whos_move = random.randint(0,1)
 
     def move(self, move: list, kills):  # input to lista z dwoma krotkami
         x, y = move[0]
@@ -213,12 +218,10 @@ class Position:
 
         return -1
 
-
     def get_as_vector(self):
         res = [self.whos_move]
         res.extend([tile for row in self.matrix for tile in row])
         return res
-
 
     @classmethod
     def is_on_same_diagonal(cls, pos1, pos2):  # pos are tuples as dicriebed above
