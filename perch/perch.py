@@ -1,5 +1,5 @@
 
-from Position import Position
+from position.position import Position
 import random
 import numpy as np
 
