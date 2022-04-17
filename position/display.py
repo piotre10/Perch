@@ -60,21 +60,20 @@ class DispWindow:
         self.height = height
         self.WINDOW = None
 
-    def init_window(self):
+    def open(self):
         pygame.display.init()
         self.WINDOW = pygame.display.set_mode((self.width, self.height))
         pygame.display.set_caption("Checkers!")
 
-    def close_window(self):
+    def close(self):
         pygame.display.quit()
 
-    def update_window(self, game_position: Position):
+    def update(self, game_position: Position):
         self.WINDOW.fill(BACKGROUND_COLOR)
         self.WINDOW.blit(BOARD, BOARD_POS)
         self.__display_position(game_position)
         self.__display_who_to_move(game_position.whos_move)
         pygame.display.update()
-
 
     def __display_position(self, game_position: Position):
         position = game_position.matrix
@@ -88,20 +87,16 @@ class DispWindow:
                         print("Invalid position")
                         break
                     self.WINDOW.blit(pawn, (BOARD_POS[0] + FIRST_PAWN_DIST + ((2 * col + ((row + 1) % 2)) * TILE_SIZE),
-                                       BOARD_POS[1] + FIRST_PAWN_DIST + (row * TILE_SIZE)))
+                                            BOARD_POS[1] + FIRST_PAWN_DIST + (row * TILE_SIZE)))
 
     def __display_who_to_move(self, whos_move):  # 0-black 1-white
         text = "{} to move".format(WHOS_MOVE_TUPLE[whos_move])
         draw_text = WHOS_MOVE_FONT.render(text, True, BLACK)
         self.WINDOW.blit(draw_text,
-                    (BOARD_POS[0] + BOARD_SIZE + 50, BOARD_POS[1] + (BOARD_SIZE - draw_text.get_height()) / 2))
+                        (BOARD_POS[0] + BOARD_SIZE + 50, BOARD_POS[1] + (BOARD_SIZE - draw_text.get_height()) / 2))
         # 50 is padding
         self.WINDOW.blit(PAWN_TUPLE[not whos_move],
-                    (BOARD_POS[0] + BOARD_SIZE + 50 + (draw_text.get_width() - PAWN_SIZE) / 2,
+                     (BOARD_POS[0] + BOARD_SIZE + 50 + (draw_text.get_width() - PAWN_SIZE) / 2,
                      BOARD_POS[1] + (BOARD_SIZE / 2) + draw_text.get_height()))
-
-
-
-
 
 

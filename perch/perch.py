@@ -1,102 +1,74 @@
+import torch
+import numpy as np
+import torch.nn as nn
+from copy import deepcopy
 
 from position.position import Position
-import random
-import numpy as np
+from perch.player import Player
+from utils.convert import pos_list_to_tensor
 
-
-class Player:
-
-    def choose_move(self, position: Position):
-        pass
-
-
-class RandomPlayer(Player):  # 4800 moves/s
-
-    def __init__(self):
-        pass
-
-    def choose_move(self, position: Position):
-        moves = position.valid_moves()
-        if len(moves) == 0:
-            return None
-        if len(moves) == 1:
-            return moves[0]
-        return moves[random.randint(0, len(moves)-1)]
 
 
 EPS = 0.5
 
-
-def add_bias_term(matrix: np.array):
-    """ Takes np matrix and adds bias term vector of 1's (horizontal) at the start of it """
-    cols = matrix.shape[1]
-    ones = np.ones((1, cols), dtype='float32')
-    return np.vstack((ones, matrix))
-
-
-def sigmoid(array: np.array):
-    return 1 / (1+np.exp(-array))
-
-
-def vectorize_positions(pos_list: list) -> np.array:
-    res = np.array([pos_list[0].get_as_vector()], dtype='float32').T
-    for i in range(1,len(pos_list)):
-        next = np.array([pos_list[0].get_as_vector()], dtype='float32').T
-        res = np.hstack(res,next)
-    return res
-
-
 class Perch1(Player):  # around 3300 moves/s on depth 1
-    # First layer - 8 x 34
-    # Second layer - 8 x 9
-    # Third layer - 1 x 9
+    input_size = 33
 
-    def __init__(self, layers = None):
+    def __init__(self, layers=None):
         if layers is None:
-            self.FirstLayer = (np.random.rand(8, 34) - 0.5)*EPS
-            self.SecondLayer = (np.random.rand(8, 9) - 0.5)*EPS
-            self.ThirdLayer = (np.random.rand(1, 9) - 0.5)*EPS
-        else:
-            self.FirstLayer = layers[0]
-            self.SecondLayer = layers[1]
-            self.ThirdLayer = layers[2]
+            self.lin1 = nn.Linear(self.input_size, 8)
+            self.act1 = nn.Tanh()
+            self.lin2 = nn.Linear(8, 8)
+            self.act2 = nn.Tanh()
+            self.lin3 = nn.Linear(8, 1)
+            self.last = nn.Sigmoid()
 
-    def choose_move(self, position: Position): # Need moves[best] won't work (wrong type fix later)
-        positions = []
-        moves = position.valid_moves()
-        if len(moves) == 0:
-            return None
-        if len(moves) == 1:
-            return moves[0]
-        for mv in moves:
-            temp = position
-            temp.move(mv[0], mv[1])
-            positions.append(temp.get_as_vector())
-        positions = np.array(positions)
-        evals = self.eval_positions(positions.T)
-        if position.whos_move == 1:
-            best = np.argmax(evals)
         else:
-            best = np.argmin(evals)
+            self.lin1 = nn.Linear(self.input_size, layers[0])
+            self.act1 = nn.Tanh()
+            self.lin2 = nn.Linear(layers[0], layers[1])
+            self.act2 = nn.Tanh()
+            self.lin3 = nn.Linear(layers[1], 1)
+            self.last = nn.Sigmoid()
+
+    def choose_move(self, position: Position):  # Need moves[best] won't work (wrong type fix later)
+        with torch.no_grad():
+            positions = []
+            moves = position.valid_moves()
+            if len(moves) == 0:
+                return None
+            if len(moves) == 1:
+                return moves[0]
+            for mv in moves:
+                temp = deepcopy(position)
+                temp.move(mv)
+                positions.append(temp)
+            pos_tensor = pos_list_to_tensor(positions)
+            evals = self.eval_positions(pos_tensor)
+            if position.whos_move == 1:
+                best = torch.argmax(evals)
+            else:
+                best = torch.argmin(evals)
         return moves[best]
 
-    def eval_positions(self, positions_matrix: np.array):
-        ''' input: matrix 33 x n of n vectorized positions'''
-        return self.process_input(positions_matrix)
+    def eval_positions(self, positions_tensor: torch.tensor):
+        ''' input: matrix 33 x n of n vectorized positions '''
+        return self.foward(positions_tensor)
 
     def eval_pos(self, position: Position):
         input = np.array([position.get_as_vector()], dtype='float32').T
-        print(input.shape)
-        input = add_bias_term(input)
-        eval = self.process_input(input)
+        input = torch.from_numpy(input)
+        eval = self.foward(input)
         return eval
 
-    def process_input(self, inp: np.array):
-        inp = add_bias_term(inp)
-        t1 = sigmoid(np.matmul(self.FirstLayer, inp))
-        t1 = add_bias_term(t1)
-        t2 = sigmoid(np.matmul(self.SecondLayer, t1))
-        t2 = add_bias_term(t2)
-        return sigmoid(np.matmul(self.ThirdLayer, t2))
+    def foward(self, inp: torch.tensor):
+        res = self.lin1(inp)
+        res = self.act1(res)
+        res = self.lin2(res)
+        res = self.act2(res)
+        res = self.lin3(res)
+        res = self.last(res)
+        return res
+
 
 
