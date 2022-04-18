@@ -26,28 +26,29 @@ class PosDB:
 
     def add_game(self, move_list, who_won):
         who_won = who_won * 2 - 3
-
+        new_rows = 0
         pos = Position()
         for mv in move_list:
             pos.move(mv)
             temp = str(tuple(pos_vec_turn_normal_to_bias(pos.get_as_vector())))
             self.cur.execute("SELECT rowid FROM pos_table WHERE pos=?;",(temp,))
             row = self.cur.fetchone()
+
             if row is None:
                 tuple_to_insert = (temp, who_won, 1, who_won)
-                t4 = timeit.default_timer()
                 self.cur.execute("INSERT INTO pos_table VALUES (?, ?, ?, ?);", tuple_to_insert)
-                t5 = timeit.default_timer()
-                print(f"{t5-t4} (insert)")
+                new_rows += 1
             else:
-                t4 = timeit.default_timer()
                 self.cur.execute("""UPDATE pos_table 
                                     SET result=result+(?),
                                     num_games = num_games+1,
                                     eval = result/CAST(num_games AS REAL)
                                     WHERE pos LIKE ?;""", (who_won, temp))
-                t5 = timeit.default_timer()
-                print(f"{t5 - t4} (update)")
+        return new_rows
+
+    def create_index(self):
+        self.cur.execute("CREATE UNIQUE INDEX pos_to_rowid ON pos_table(pos)")
+
 
     def get_average_num_games(self):
         self.cur.execute("SELECT SUM(num_games)/CAST(COUNT(*) as REAL) FROM pos_table;")

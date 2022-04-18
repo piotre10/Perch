@@ -2,134 +2,121 @@ import copy
 from math import copysign
 import random
 
-STARTING_POS = [[1, 1, 1, 1],
-                [1, 1, 1, 1],
-                [1, 1, 1, 1],
-                [0, 0, 0, 0],
-                [0, 0, 0, 0],
-                [2, 2, 2, 2],
-                [2, 2, 2, 2],
-                [2, 2, 2, 2]]
-TESTING_POS = [[4, 0, 0, 0],
-               [0, 0, 0, 0],
-               [4, 0, 0, 0],
-               [0, 0, 1, 0],
-               [0, 0, 2, 0],
-               [3, 0, 0, 1],
-               [0, 2, 0, 0],
-               [0, 0, 1, 0]]
-# move = [[START_POS,END_POS],[KILL1, KILL2, ...]]
+STARTING_POS = [1, 1, 1, 1,
+                1, 1, 1, 1,
+                1, 1, 1, 1,
+                0, 0, 0, 0,
+                0, 0, 0, 0,
+                2, 2, 2, 2,
+                2, 2, 2, 2,
+                2, 2, 2, 2]
+
+# move = ((START_POS,END_POS),(KILL1, KILL2, ...))
 # all above are tuples (y, x) as cordinates in position matrix
-# whos_move: white - 1 black - 0
+# whos_move: white - 0 black - 1
 
 
 class Position:
 
-    __slots__ = ['matrix', 'whos_move', 'twenty_move_rule']
+    __slots__ = ['pos_vec', 'whos_move', 'twenty_move_rule', 'pawns']
 
-    def __init__(self, matrix=STARTING_POS, whos_move=0):
-        self.matrix = copy.deepcopy(matrix)
+    def __init__(self, pos_vec=None, whos_move=1):
+        if pos_vec is None:
+            self.pos_vec = copy.deepcopy(STARTING_POS)
+        else:
+            self.pos_vec = copy.deepcopy(pos_vec)
         self.whos_move = whos_move
         self.twenty_move_rule = 0
+        self.pawns = [[], [], [], []]
+        for index, pawn_id in enumerate(self.pos_vec):
+            if pawn_id != 0:
+                self.pawns[pawn_id-1].append(index)
 
     def __repr__(self):
-        return str(self.whos_move)+' '+str(self.twenty_move_rule)+' '+repr(self.matrix)
+        return str(self.whos_move)+' '+str(self.twenty_move_rule)+' '+repr(self.pos_vec)
 
     def __str__(self):
-        return str(self.whos_move) + ' ' + str(self.twenty_move_rule) + '\n' + str(self.matrix)
+        return str(self.whos_move) + ' ' + str(self.twenty_move_rule) + '\n' + str(self.pos_vec)
 
     def randomize(self):
-        self.matrix = [[random.randint(0,4)*random.randint(0,1) for i in range(0,4)] for j in range(0,8)]
-        self.whos_move = random.randint(0,1)
+        self.pos_vec = [random.randint(0, 4)*random.randint(0, 1) for i in range(0, 32)]
+        self.whos_move = random.randint(0, 1)
 
-    def move(self, move: list):  # input to lista z dwoma krotkami
-        x, y = move[0][0]
-        z, w = move[0][1]
+    def move(self, move: tuple):  # input move as specified at the start of file
+        start, dest = move[0]
         kills = move[1]
-        if self.matrix[x][y] > 2 and len(kills) == 0:
+        if self.pos_vec[start] > 2 and len(kills) == 0:
             self.twenty_move_rule += 1
         else:
             self.twenty_move_rule = 0
-        self.matrix[z][w] = self.matrix[x][y]
-        self.matrix[x][y] = 0
-        if z == 7 and self.matrix[z][w] == 1:
-            self.matrix[z][w] = 3
-        if z == 0 and self.matrix[z][w] == 2:
-            self.matrix[z][w] = 4
+        idx = pawn_id = self.pos_vec[start]
+        self.pawns[pawn_id - 1].remove(start)
+        self.pos_vec[dest] = self.pos_vec[start]
+        self.pos_vec[start] = 0
+        if dest > 27 and self.pos_vec[dest] == 1:  # last row and white pawn
+            idx = self.pos_vec[dest] = 3
+        if dest < 4 and self.pos_vec[dest] == 2:  # last row and black pawn
+            idx = self.pos_vec[dest] = 4
         for kill in kills:
-            self.matrix[kill[0]][kill[1]] = 0
+            pawn_id = self.pos_vec[kill]
+            self.pawns[pawn_id-1].remove(kill)
+            self.pos_vec[kill] = 0
+
+        self.pawns[idx - 1].append(dest)
         self.whos_move = (self.whos_move + 1) % 2
-        return self.matrix
+        return self.pos_vec
 
     def valid_moves(self):
         if self.capture_is_possible():
-            return self.possible_captures()
-        pos_moves = []
-        for y, row in enumerate(self.matrix):
-            for x, pawn in enumerate(row):
-                if pawn == 0 or pawn % 2 != self.whos_move:
-                    continue  # empty tile or enemy pawn so go next
-                start_pos = (y, x)
-                function_tuple = (self.go_up_left, self.go_up_right) if self.whos_move == 0 else (self.go_down_left,
-                                                                                                  self.go_down_right)
-                if pawn < 3:  # Pawn moves
-                    for func in function_tuple:
-                        end_pos = func(start_pos)
-                        if end_pos != 0:
-                            if self.matrix[end_pos[0]][end_pos[1]] != 0:
-                                continue
-                            pos_moves.append([[start_pos, end_pos], []])
+            return self.all_possible_captures()
+        moves = []
+        for pawn_pos in self.pawns[self.whos_move]:  # Pawn moves
+            function_tuple = (self.go_up_left, self.go_up_right) if self.whos_move == 1 else (self.go_down_left,
+                                                                                              self.go_down_right)
+            for func in function_tuple:
+                dest = func(pawn_pos)
+                if dest is None:
+                    continue
+                if self.pos_vec[dest] == 0:
+                    moves.append( ((pawn_pos, dest), ()) )
 
-                else:  # Queen moves
-                    function_tuple = (self.go_up_left, self.go_down_left, self.go_up_right, self.go_down_right)
-                    for func in function_tuple:
-                        end_pos = func(start_pos)
-                        while True:
-                            if end_pos == 0 or self.matrix[end_pos[0]][end_pos[1]] != 0:
-                                break
-                            else:
-                                pos_moves.append([[start_pos, end_pos], []])
-                                end_pos = func(end_pos)
+        for queen_pos in self.pawns[self.whos_move + 2]:   # Queen moves
+            function_tuple = (self.go_up_left, self.go_down_left, self.go_up_right, self.go_down_right)
+            for func in function_tuple:
+                dest = func(queen_pos)
+                while True:
+                    if dest is None or self.pos_vec[dest] != 0:
+                        break
+                    else:
+                        moves.append(((queen_pos, dest), ()))
+                        dest = func(dest)
 
-        return pos_moves
+        return moves
 
     def set_starting_pos(self):
-        self.matrix = copy.deepcopy(STARTING_POS)
-        return self.matrix
+        self .pos_vec = copy.deepcopy(STARTING_POS)
+        return self.pos_vec
 
-    def possible_captures(self):
+    def all_possible_captures(self):
         capture_list = []
-        for y, row in enumerate(self.matrix):
-            for x, pawn in enumerate(row):
-                if pawn == 0 or pawn % 2 != self.whos_move:
-                    continue  # empty tile or enemy pawn so go next
-                start_pos = (y, x)
-                captures = self.possible_jumps(start_pos)
-                if len(captures) == 0:
-                    continue
-                for capture in captures:
-                    temp = copy.deepcopy(self)
-                    temp.move(capture)
-                    jumps = temp.possible_jumps(capture[0][1], pawn)
-                    for jump in jumps:
-                        new_capture = [[capture[0][0], jump[0][1]], capture[1]+jump[1]]
-                        captures.append(new_capture)
-                    if len(jumps) != 0:
-                        captures.remove(capture)
-
-                capture_list.extend(captures)
+        for pawn_pos in self.pawns[self.whos_move] + self.pawns[self.whos_move+2]:
+            captures = self.possible_captures(pawn_pos)
+            if not captures:
+                continue
+            capture_list.extend(captures)
 
         return capture_list
 
-    def move_is_valid(self, move: list):  # works if there wasnt multiple captures! (to add recursive multiple captures)
-        start_pos = move[0][0]
-        end_pos = move[0][1]
-        if not self.is_valid_tile_id(start_pos) or not self.is_valid_tile_id(end_pos):
+    def move_is_valid(self, move: list):  # currently does NOT work
+        print("Warning: Function is not working properly (work in progress)")
+        start = move[0][0]
+        dest = move[0][1]
+        if not self.is_valid_tile_id(start) or not self.is_valid_tile_id(dest):
             return 0
-        pawn_id = self.matrix[start_pos[0]][start_pos[1]]
-        if pawn_id % 2 != self.whos_move:
+        pawn_id = self.pos_vec[start]
+        if (pawn_id + 1) % 2 != self.whos_move:
             return 0
-        if self.matrix[end_pos[0]][end_pos[1]] != 0:
+        if self.pos_vec[dest] != 0:
             return 0
         if pawn_id == 0:
             return 0  # 0-black 1-white
@@ -139,83 +126,101 @@ class Position:
                 killed_pawn_id = self.matrix[killed_pos[0]][killed_pos[1]]
                 if killed_pawn_id == 0:
                     return 0
-                diag = self.is_on_same_diagonal(start_pos, killed_pos)
-                if diag == self.is_on_same_diagonal(end_pos, killed_pos) and diag != 0:  # same diagonal
-                    if start_pos[0]+end_pos[0] == 2 * killed_pos[0]:  # killed between start and end
-                        if abs(start_pos[0] - end_pos[0]) == 2:  # start and end two tiles apart
+                diag = self.is_on_same_diagonal(start, killed_pos)
+                if diag == self.is_on_same_diagonal(dest, killed_pos) and diag != 0:  # same diagonal
+                    if start[0]+dest[0] == 2 * killed_pos[0]:  # killed between start and end
+                        if abs(start[0] - dest[0]) == 2:  # start and end two tiles apart
                             if killed_pawn_id % 2 != self.whos_move:  # dont capture own pawn
                                 return 1
             elif len(move[1]) == 0:  # zero captures
-                if self.is_on_same_diagonal(start_pos, end_pos):  # is the same diagonal
-                    if end_pos[0] - start_pos[0] == 2 * self.whos_move - 1:  # one tile apart in good direction
+                if self.is_on_same_diagonal(start, dest):  # is the same diagonal
+                    if dest[0] - start[0] == 2 * self.whos_move - 1:  # one tile apart in good direction
                         return 1
 
         else:  # queen
             if len(move[1]) == 0:  # zero captures
-                if self.is_on_same_diagonal(start_pos, end_pos):  # same diagonal
+                if self.is_on_same_diagonal(start, dest):  # same diagonal
                     return 1
             elif len(move[1]) == 1:  # one capture
                 killed_pos = move[1][0]
-                diag = self.is_on_same_diagonal(start_pos, killed_pos)
-                if diag == self.is_on_same_diagonal(end_pos, killed_pos) and diag != 0:  # same diagonal
-                    if copysign(1, start_pos[0]-killed_pos[0]) == copysign(1, killed_pos[0]-end_pos[0]):
+                diag = self.is_on_same_diagonal(start, killed_pos)
+                if diag == self.is_on_same_diagonal(dest, killed_pos) and diag != 0:  # same diagonal
+                    if copysign(1, start[0]-killed_pos[0]) == copysign(1, killed_pos[0]-dest[0]):
                         # killed between start and end
                         return 1
         return 0
 
-    def possible_jumps(self, pawn_pos, pawn_id=-1):
+    def possible_jumps(self, pawn_pos, pawn_id=None):
         """return list of avilable jumps if there is possible capture from pawn_pos and empty list if not"""
-        res = []  # list of available jumps as: [move1, move2, move3,...]
-        y, x = pawn_pos
-        if pawn_id == -1:
-            pawn_id = self.matrix[y][x]
+        jumps = []  # list of available jumps as: [move1, move2, move3,...]
+        if pawn_id is None:
+            pawn_id = self.pos_vec[pawn_pos]
         if pawn_id == 0:
             return []
+        function_tuple = (self.go_up_left, self.go_down_left, self.go_up_right, self.go_down_right)
         if pawn_id < 3:
-            possible_ends = [(y-2, x-1), (y-2, x+1),
-                             (y+2, x-1), (y+2, x+1)]
-            for end_pos in possible_ends:
-                if self.is_valid_tile_id(end_pos):
-                    if self.matrix[end_pos[0]][end_pos[1]] == 0:
-                        killed_pos = (int((y + end_pos[0]) / 2),
-                                      int((x + end_pos[1]) // 2 + ((y + 1) % 2)))
-                        killed_pawn_id = self.matrix[killed_pos[0]][killed_pos[1]]
-                        if killed_pawn_id == 0:
-                            continue
-                        if killed_pawn_id % 2 == (pawn_id+1) % 2:
-                            res.append([[pawn_pos, end_pos], [killed_pos]])
+            for func in function_tuple:
+                killed = func(pawn_pos)
+                if killed is None or self.tile_is_empty(killed) or self.is_pawns_move(killed):
+                    continue
+                dest = func(killed)
+                if dest is not None and self.pos_vec[dest] == 0:
+                    jumps.append(((pawn_pos, dest), (killed,)))
         else:
-            function_tuple = (self.go_up_left, self.go_down_left, self.go_up_right, self.go_down_right)
             for func in function_tuple:
                 pos = func(pawn_pos)
-                while pos:
-                    temp_pawn_id = self.matrix[pos[0]][pos[1]]
-                    if temp_pawn_id == 0:
+                kills = []
+                while pos is not None:
+                    temp_pawn_id = self.pos_vec[pos]
+                    if self.is_pawns_move(pos):
+                        break
+                    elif temp_pawn_id == 0:
+                        if kills:
+                            jumps.append(((pawn_pos, pos), tuple(kills)))
                         pos = func(pos)
                         continue
-                    if temp_pawn_id % 2 == (pawn_id+1) % 2:
-                        killed_pos = pos
+                    else:
+                        kills.append(pos)
                         pos = func(pos)
-                        while pos and self.matrix[pos[0]][pos[1]] == 0:
-                            res.append([[pawn_pos, pos], [killed_pos]])
-                            pos = func(pos)
-                    break
-        return res
+
+        return jumps
+
+    def possible_captures(self, pawn_pos, pawn_id=None):
+        if pawn_id is None:
+            pawn_id = self.pos_vec[pawn_pos]
+        if not self.possible_jumps(pawn_pos, pawn_id):
+            return None
+        captures = self.possible_jumps(pawn_pos, pawn_id)
+        all_captures = []
+        for capture in captures:
+            start, dest = capture[0]
+            temp = copy.deepcopy(self)
+            temp.move(capture)
+            temp.toggle_whos_move()
+            next_captures = temp.possible_captures(dest, pawn_id)
+            if next_captures is None:
+                if capture not in all_captures:
+                    all_captures.append(capture)
+                continue
+            for capt in next_captures:
+                new_dest = capt[0][1]
+                new_capture = ((start, new_dest), capture[1] + capt[1])
+                if new_capture not in all_captures:
+                    all_captures.append(new_capture)
+        if not all_captures:
+            return None
+        return all_captures
 
     def capture_is_possible(self):  # returns 0 if there is no possible capture and 1 otherwise
-        for y, row in enumerate(self.matrix):
-            for x, pawn in enumerate(row):
-                if pawn == 0:
-                    continue
-                if pawn % 2 == self.whos_move:
-                    if self.possible_jumps((y, x)):
-                        return 1
+        for pawn_pos in self.pawns[self.whos_move+2] + self.pawns[self.whos_move]:
+            if self.possible_jumps(pawn_pos):
+                return 1
         return 0
 
     def is_win(self):
         """last_move is color of last player who moved, returns 0 if there is no win 1 if black wins 2 if white wins"""
         if len(self.valid_moves()) == 0:
-            return (self.whos_move + 1) % 2 + 1
+            return self.whos_move + 1
         return 0
 
     def is_end(self):
@@ -229,9 +234,16 @@ class Position:
         return -1
 
     def get_as_vector(self):
-        res = [self.whos_move]
-        res.extend([tile for row in self.matrix for tile in row])
-        return res
+        return [self.whos_move] + self.pos_vec
+
+    def is_pawns_move(self, pawn_pos):
+        return self.pos_vec[pawn_pos] != 0 and (self.pos_vec[pawn_pos] + 1) % 2 == self.whos_move
+
+    def tile_is_empty(self, pos):
+        return self.pos_vec[pos] == 0
+
+    def toggle_whos_move(self):
+        self.whos_move = (self.whos_move + 1) % 2
 
     @classmethod
     def is_on_same_diagonal(cls, pos1, pos2):  # pos are tuples as dicriebed above
@@ -243,35 +255,37 @@ class Position:
         return 0
 
     @classmethod
-    def is_valid_tile_id(cls, tested_id: tuple):
-        x = tested_id[1]
-        y = tested_id[0]
-        return (x >= 0) and (x < 4) and (y >= 0) and (y < 8)
+    def is_valid_tile_id(cls, tested_id: int):
+        return 0 <= tested_id < 32
 
     @classmethod
     def go_up_left(cls, pos):
-        new_pos = (pos[0]-1, pos[1]-(pos[0] % 2))
-        if cls.is_valid_tile_id(new_pos):
-            return new_pos
-        return 0
+        if pos < 4 or pos % 8 == 4:  # either top or left side of the board
+            return None
+        temp = 1 if pos % 8 > 3 else 0
+        new_pos = pos - 4 - temp
+        return new_pos
 
     @classmethod
     def go_up_right(cls, pos):
-        new_pos = (pos[0]-1, pos[1]-(pos[0] % 2)+1)
-        if cls.is_valid_tile_id(new_pos):
-            return new_pos
-        return 0
+        if pos < 4 or pos % 8 == 3:  # either top or right side of the board
+            return None
+        temp = 1 if pos % 8 > 3 else 0
+        new_pos = pos - 3 - temp
+        return new_pos
 
     @classmethod
     def go_down_left(cls, pos):
-        new_pos = (pos[0] + 1, pos[1] - (pos[0] % 2))
-        if cls.is_valid_tile_id(new_pos):
-            return new_pos
-        return 0
+        if pos > 27 or pos % 8 == 4:  # either bottom or left side of the board
+            return None
+        temp = 1 if pos % 8 > 3 else 0
+        new_pos = pos + 4 - temp
+        return new_pos
 
     @classmethod
     def go_down_right(cls, pos):
-        new_pos = (pos[0] + 1, pos[1] - (pos[0] % 2) + 1)
-        if cls.is_valid_tile_id(new_pos):
-            return new_pos
-        return 0
+        if pos > 27 or pos % 8 == 3:  # either bottom or right side of the board
+            return None
+        temp = 1 if pos % 8 > 3 else 0
+        new_pos = pos + 5 - temp
+        return new_pos

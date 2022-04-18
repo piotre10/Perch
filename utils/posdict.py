@@ -11,7 +11,7 @@ class PosDict:
 
     def add_game(self, move_list: list, who_won: int):
         who_won = who_won*2 - 3
-
+        new_rows = 0
         pos = Position()
         for mv in move_list:
             pos.move(mv)
@@ -21,6 +21,8 @@ class PosDict:
                 self.positions[temp][1] += 1
             else:
                 self.positions[temp] = [who_won, 1]
+                new_rows += 1
+        return new_rows
 
     def save(self):
         torch.save(self.positions, f'saves/pos_dict_{self.name}.pth', pickle_protocol=HIGHEST_PROTOCOL)

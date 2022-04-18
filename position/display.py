@@ -54,8 +54,9 @@ INVALID_MOVE = [[WRONG_TILE_ID, WRONG_TILE_ID], []]
 # User display constants
 USER_IMAGE_SIZE = 48
 
+
 class DispWindow:
-    def __init__(self,width=WIDTH, height=HEIGHT):
+    def __init__(self, width=WIDTH, height=HEIGHT):
         self.width = width
         self.height = height
         self.WINDOW = None
@@ -75,11 +76,17 @@ class DispWindow:
         self.__display_who_to_move(game_position.whos_move)
         pygame.display.update()
 
+    def quit_event(self):
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                return 1
+        return 0
+
     def __display_position(self, game_position: Position):
-        position = game_position.matrix
+        position = game_position.pos_vec
         for row in range(0, 8):
             for col in range(0, 4):
-                pawn_id = position[row][col]
+                pawn_id = position[4*row+col]
                 if pawn_id != 0:
                     try:
                         pawn = PAWN_TUPLE[pawn_id - 1]

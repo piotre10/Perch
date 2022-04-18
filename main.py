@@ -1,3 +1,4 @@
+import copy
 import timeit
 
 import pygame
@@ -18,14 +19,7 @@ from torch.utils.tensorboard import SummaryWriter
 import keyboard
 
 # TESTING
-TESTING_POS = [[4, 0, 0, 0],
-               [0, 0, 0, 0],
-               [4, 0, 0, 0],
-               [0, 0, 1, 0],
-               [0, 0, 2, 0],
-               [3, 0, 0, 1],
-               [0, 2, 0, 0],
-               [0, 0, 1, 0]]
+TESTING_POS = [1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 1, 0, 0, 1, 0, 2, 2, 0, 0, 2, 1, 2, 2, 0, 2, 2, 2, 2, 2, 2, 2]
 
 
 def speed_of_moves(player: Player, noMoves = 1000):
@@ -41,28 +35,58 @@ def speed_of_moves(player: Player, noMoves = 1000):
 
 
 if __name__ == '__main__':
+    pl1 = RandomPlayer()
+    pl2 = RandomPlayer()
+    moves, who_won = gm.play_game(pl1, pl2)
+    gm.display_game(moves, sleep_time=0.8)
+    #pos = Position(TESTING_POS, 0)
+    #gm.display_position(pos)
 
-    big_number = 12345678900
+    #print(pos.valid_moves())
+    #gm.display_position(pos)
+
+
+
+#    setup = '''
+#import utils.game as gm
+#from perch.player import RandomPlayer
+
+#pl1 = RandomPlayer()
+#pl2 = RandomPlayer()'''
+
+#    t = timeit.repeat('gm.play_game(pl1,pl2)', setup=setup, number=10000)
+#    print(t)
+
+'''
     pl1 = RandomPlayer()
     pl2 = RandomPlayer()
     pos_dict = PosDict('random')
     pos_db = PosDB('test')
+    mode = int(input("Choose mode (1-adding games 2-print parameters):"))
     pos_db.create_connection()
     if pos_db.is_connected():
         pos_db.init_cursor()
         pos_db.create_pos_table()
-        total_time = 0
-        gm.add_games(pl1, pl2, pos_db, num_games=10)
+        if mode == 1:
+            gm.keep_adding_games(pl1, pl2, pos_db)
+        elif mode == 2:
+            games_to_test = int(input("How many games to play: "))
+            t0 = timeit.default_timer()
+            av_record_growth = gm.add_games(pl1, pl2, pos_db, num_games=games_to_test) / games_to_test
+            t1 = timeit.default_timer()
+            records = pos_db.get_num_records()
+            av_game_quantity = pos_db.get_average_num_games()
+
+            print(f'Parameters:
+            average new records: {av_record_growth}
+            average game quantity: {av_game_quantity}
+            number of all records: {records}  
+            time of adding {games_to_test} games: {t1 - t0} 
+            speed games/s: {games_to_test/(t1 - t0)}')
 
         pos_db.commit()
         pos_db.close_connection()
-    #conn = sqlite3.connect('databases/test.db')
-
-    #conn.close()
-    #pos_dict.load()
-    #gm.keep_adding_games(pl1, pl2, pos_dict)
-    #print(len(pos_dict.get_dict().keys()))
-    #pos_dict.save()
+'''
 
 '''
     player1 = Perch.RandomPlayer()

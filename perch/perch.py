@@ -8,11 +8,9 @@ from perch.player import Player
 from utils.convert import pos_list_to_tensor
 
 
-
-EPS = 0.5
-
-class Perch1(Player):  # around 3300 moves/s on depth 1
+class Perch1(Player):
     input_size = 33
+    queen_value = 3
 
     def __init__(self, layers=None):
         if layers is None:
