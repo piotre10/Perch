@@ -1,3 +1,5 @@
+import copy
+
 import pygame
 import os
 from position.position import Position
@@ -35,7 +37,7 @@ BLACK_QUEEN = pygame.transform.scale(BLACK_QUEEN_PICTURE, (PAWN_SIZE, PAWN_SIZE)
 
 #  TUPLES
 PAWN_TUPLE = (WHITE_PAWN, BLACK_PAWN, WHITE_QUEEN, BLACK_QUEEN)
-WHOS_MOVE_TUPLE = ("Black", "White")
+WHOS_MOVE_TUPLE = ("White", "Black")
 
 #  Fonts
 pygame.font.init()
@@ -50,6 +52,13 @@ BLACK_WINS = pygame.USEREVENT + 4
 ENDED_IN_DRAW = pygame.USEREVENT + 5
 WRONG_TILE_ID = (-1, -1)
 INVALID_MOVE = [[WRONG_TILE_ID, WRONG_TILE_ID], []]
+
+# Higlighting
+
+TILE_RECT = pygame.Rect((BOARD_POS[0] + BOARD_BORDER_WIDTH,BOARD_POS[1] + BOARD_BORDER_WIDTH),
+                              (TILE_SIZE, TILE_SIZE))
+FRAME_COLOR = (252, 219, 3)
+SHADOW_COLOR = (22, 242, 55, 254)
 
 # User display constants
 USER_IMAGE_SIZE = 48
@@ -66,21 +75,114 @@ class DispWindow:
         self.WINDOW = pygame.display.set_mode((self.width, self.height))
         pygame.display.set_caption("Checkers!")
 
-    def close(self):
+    @staticmethod
+    def close():
         pygame.display.quit()
 
-    def update(self, game_position: Position):
+    def update(self, game_position: Position, tiles_to_highlight = (), tiles_to_shadow = ()):
         self.WINDOW.fill(BACKGROUND_COLOR)
         self.WINDOW.blit(BOARD, BOARD_POS)
+        for tile in tiles_to_shadow:
+            self.__tile_put_shadow(tile)
         self.__display_position(game_position)
+        for tile in tiles_to_highlight:
+            self.__tile_highlight(tile)
         self.__display_who_to_move(game_position.whos_move)
         pygame.display.update()
 
-    def quit_event(self):
+    @staticmethod
+    def quit_event():
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 return 1
         return 0
+
+    def get_move(self, pos: Position):
+        self.update(pos)
+        highlights = []
+        shadows = []
+        move_dict = {}
+        is_first_click = True
+        is_locked = False
+        start = dest = -1
+        kills = []
+        temp = copy.deepcopy(pos)
+        while True:
+            self.update(temp, highlights, shadows)
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    self.close()
+                if event.type == pygame.MOUSEBUTTONUP:
+                    clicked = self.__id_of_tile(pygame.mouse.get_pos())
+                    if is_first_click:
+                        if clicked is not None and pos.is_pawns_move(clicked):
+                            start = clicked
+                            highlights = [clicked]
+                            move_dict = self.__get_shadows(pos, clicked)
+                            shadows = list(move_dict.keys())
+
+                            is_first_click = False
+                    else:
+
+                        if clicked is None or clicked not in shadows:
+                            if not is_locked:
+                                highlights = []
+                                move_dict = {}
+                                shadows = []
+                                is_first_click = True
+                            continue
+
+                        move = move_dict[clicked]
+
+                        if not move[1]:
+                            return move
+                        else:
+                            kills.extend(move[1])
+                            dest = move[0][1]
+                            temp.move(move)
+                            temp.toggle_whos_move()
+                            highlights = [dest]
+                            move_dict = self.__get_shadows(temp, move[0][1], kill=1)
+                            shadows = list(move_dict.keys())
+                            is_locked = True
+                            if not shadows:
+                                mv = ((start, dest), tuple(kills))
+                                return mv
+
+
+
+    @staticmethod
+    def __get_shadows(pos: Position, pawn_pos: int, kill=0):
+        moves = []
+        if pos.capture_is_possible():
+            moves = pos.possible_jumps(pawn_pos)
+        elif not kill:
+            moves = pos.possible_moves(pawn_pos)
+
+        return {move[0][1]: move for move in moves}
+
+    @staticmethod
+    def __id_of_tile(cord):
+        if cord[0] > BOARD_POS[0] + BOARD_BORDER_WIDTH and cord[1] > BOARD_POS[1] + BOARD_BORDER_WIDTH:
+            x = (cord[0] - (BOARD_POS[0] + BOARD_BORDER_WIDTH)) // TILE_SIZE
+            y = (cord[1] - (BOARD_POS[1] + BOARD_BORDER_WIDTH)) // TILE_SIZE
+            if 0 <= x < 8 and 0 <= y < 8:
+                if (x + y) % 2 == 1:
+                    return 4*int(y) + int(x)//2
+        return None
+
+    def __tile_highlight(self, tile_id: int):
+        ''' highlights black tile defined by tile_id (if such exists) '''
+        if tile_id is None:
+            return
+        if Position.is_valid_tile_id(tile_id):
+            pygame.draw.rect(self.WINDOW, FRAME_COLOR, self.__move_rect_on_tile(TILE_RECT, tile_id), 2)
+
+    def __tile_put_shadow(self, tile_id: int):
+        if tile_id is None:
+            return
+        if Position.is_valid_tile_id(tile_id):
+            pygame.draw.rect(self.WINDOW, SHADOW_COLOR, self.__move_rect_on_tile(TILE_RECT, tile_id))
 
     def __display_position(self, game_position: Position):
         position = game_position.pos_vec
@@ -96,14 +198,21 @@ class DispWindow:
                     self.WINDOW.blit(pawn, (BOARD_POS[0] + FIRST_PAWN_DIST + ((2 * col + ((row + 1) % 2)) * TILE_SIZE),
                                             BOARD_POS[1] + FIRST_PAWN_DIST + (row * TILE_SIZE)))
 
-    def __display_who_to_move(self, whos_move):  # 0-black 1-white
+    def __display_who_to_move(self, whos_move):  # 1-black 0-white
         text = "{} to move".format(WHOS_MOVE_TUPLE[whos_move])
         draw_text = WHOS_MOVE_FONT.render(text, True, BLACK)
         self.WINDOW.blit(draw_text,
                         (BOARD_POS[0] + BOARD_SIZE + 50, BOARD_POS[1] + (BOARD_SIZE - draw_text.get_height()) / 2))
         # 50 is padding
-        self.WINDOW.blit(PAWN_TUPLE[not whos_move],
+        self.WINDOW.blit(PAWN_TUPLE[whos_move],
                      (BOARD_POS[0] + BOARD_SIZE + 50 + (draw_text.get_width() - PAWN_SIZE) / 2,
-                     BOARD_POS[1] + (BOARD_SIZE / 2) + draw_text.get_height()))
+                      BOARD_POS[1] + (BOARD_SIZE / 2) + draw_text.get_height()))
 
-
+    @staticmethod
+    def __move_rect_on_tile(rect: pygame.Rect, tile_id):
+        y = tile_id // 4
+        temp = 0
+        if tile_id % 8 < 4:
+            temp = 1
+        x = 2 * (tile_id % 4) + temp
+        return rect.move(x*TILE_SIZE, y*TILE_SIZE)

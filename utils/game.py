@@ -14,8 +14,6 @@ def play_game(player1: Player(), player2: Player()):
     players = (player1, player2)
     moves = []
     while pos.is_end() == -1:
-        print(pos)
-        print(pos.valid_moves())
         mv = players[pos.whos_move].choose_move(pos)
         pos.move(mv)
         moves.append(mv)

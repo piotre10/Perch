@@ -8,11 +8,12 @@ from perch.player import Player
 from utils.convert import pos_list_to_tensor
 
 
-class Perch1(Player):
+class Perch1(Player):   # Fixed values evaluation
     input_size = 33
     queen_value = 3
 
-    def __init__(self, layers=None):
+    def __init__(self, layers=None, name='Perch1'):
+        super(Perch1, self).__init__(name)
         if layers is None:
             self.lin1 = nn.Linear(self.input_size, 8)
             self.act1 = nn.Tanh()

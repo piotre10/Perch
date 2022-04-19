@@ -1,12 +1,13 @@
 import copy
 import timeit
-
+from statistics import mean
 import pygame
 import time
 
 import torch
 import sqlite3
 
+from position.display import DispWindow
 from position.position import Position
 from perch.player import Player, RandomPlayer
 from perch.perch import Perch1
@@ -19,7 +20,7 @@ from torch.utils.tensorboard import SummaryWriter
 import keyboard
 
 # TESTING
-TESTING_POS = [1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 1, 0, 0, 1, 0, 2, 2, 0, 0, 2, 1, 2, 2, 0, 2, 2, 2, 2, 2, 2, 2]
+TESTING_POS = [0, 4, 0, 0, 0, 1, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 2, 0, 0, 0, 2, 2, 2, 2, 0, 2, 0, 0]
 
 
 def speed_of_moves(player: Player, noMoves = 1000):
@@ -35,10 +36,25 @@ def speed_of_moves(player: Player, noMoves = 1000):
 
 
 if __name__ == '__main__':
-    pl1 = RandomPlayer()
-    pl2 = RandomPlayer()
-    moves, who_won = gm.play_game(pl1, pl2)
-    gm.display_game(moves, sleep_time=0.8)
+
+    pos = Position(TESTING_POS)
+
+    WIN = DispWindow()
+    WIN.open()
+    WIN.update(pos)
+    pos.valid_moves()
+    while True:
+        WIN.update(pos)
+        if WIN.quit_event():
+            WIN.close()
+            break
+        mv = WIN.get_move(pos)
+        pos.move(mv)
+
+    #pl1 = RandomPlayer()
+    #pl2 = RandomPlayer()
+    #moves, who_won = gm.play_game(pl1, pl2)
+
     #pos = Position(TESTING_POS, 0)
     #gm.display_position(pos)
 
@@ -46,16 +62,16 @@ if __name__ == '__main__':
     #gm.display_position(pos)
 
 
-
-#    setup = '''
+    #setup = '''
 #import utils.game as gm
 #from perch.player import RandomPlayer
+#from position.position import Position
 
 #pl1 = RandomPlayer()
 #pl2 = RandomPlayer()'''
 
-#    t = timeit.repeat('gm.play_game(pl1,pl2)', setup=setup, number=10000)
-#    print(t)
+    #t = timeit.repeat('gm.play_game(pl1,pl2)', setup=setup, number=10000)
+    #print(t, mean(t))
 
 '''
     pl1 = RandomPlayer()

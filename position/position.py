@@ -10,7 +10,7 @@ STARTING_POS = [1, 1, 1, 1,
                 2, 2, 2, 2,
                 2, 2, 2, 2,
                 2, 2, 2, 2]
-
+DEFAULT_PAWNS = [[0,1,2,3,4,5,6,7,8,9,10,11],[20,21,22,23,24,25,26,27,28,29,30,31], [], []]
 # move = ((START_POS,END_POS),(KILL1, KILL2, ...))
 # all above are tuples (y, x) as cordinates in position matrix
 # whos_move: white - 0 black - 1
@@ -21,16 +21,18 @@ class Position:
     __slots__ = ['pos_vec', 'whos_move', 'twenty_move_rule', 'pawns']
 
     def __init__(self, pos_vec=None, whos_move=1):
+        self.pawns = [[], [], [], []]
         if pos_vec is None:
             self.pos_vec = copy.deepcopy(STARTING_POS)
+            self.pawns = copy.copy(DEFAULT_PAWNS)
         else:
             self.pos_vec = copy.deepcopy(pos_vec)
+            for index, pawn_id in enumerate(self.pos_vec):
+                if pawn_id != 0:
+                    self.pawns[pawn_id - 1].append(index)
+
         self.whos_move = whos_move
         self.twenty_move_rule = 0
-        self.pawns = [[], [], [], []]
-        for index, pawn_id in enumerate(self.pos_vec):
-            if pawn_id != 0:
-                self.pawns[pawn_id-1].append(index)
 
     def __repr__(self):
         return str(self.whos_move)+' '+str(self.twenty_move_rule)+' '+repr(self.pos_vec)
@@ -49,24 +51,25 @@ class Position:
             self.twenty_move_rule += 1
         else:
             self.twenty_move_rule = 0
-        idx = pawn_id = self.pos_vec[start]
-        self.pawns[pawn_id - 1].remove(start)
-        self.pos_vec[dest] = self.pos_vec[start]
+
+        pawn_id = self.pos_vec[start]
         self.pos_vec[start] = 0
-        if dest > 27 and self.pos_vec[dest] == 1:  # last row and white pawn
-            idx = self.pos_vec[dest] = 3
-        if dest < 4 and self.pos_vec[dest] == 2:  # last row and black pawn
-            idx = self.pos_vec[dest] = 4
+        self.pawns[pawn_id - 1].remove(start)
+
         for kill in kills:
-            pawn_id = self.pos_vec[kill]
-            self.pawns[pawn_id-1].remove(kill)
+            killed_id = self.pos_vec[kill]
+            self.pawns[killed_id-1].remove(kill)
             self.pos_vec[kill] = 0
 
-        self.pawns[idx - 1].append(dest)
-        self.whos_move = (self.whos_move + 1) % 2
-        return self.pos_vec
+        if (dest > 27 and pawn_id == 1) or (dest < 4 and pawn_id == 2):  # queening
+            pawn_id += 2
 
-    def valid_moves(self):
+        self.pos_vec[dest] = pawn_id
+        self.pawns[pawn_id - 1].append(dest)
+
+        self.whos_move = (self.whos_move + 1) % 2
+
+    def valid_moves(self):   # consider possible moves()
         if self.capture_is_possible():
             return self.all_possible_captures()
         moves = []
@@ -180,10 +183,45 @@ class Position:
                         pos = func(pos)
                         continue
                     else:
-                        kills.append(pos)
+                        killed_pos = pos
                         pos = func(pos)
-
+                        if self.pos_vec[pos] == 0:
+                            kills.append(killed_pos)
+                            continue
+                        else:
+                            break
+        print(jumps)
         return jumps
+
+    def possible_moves(self, pawn_pos: int, pawn_id=None):
+        if self.possible_jumps(pawn_pos, pawn_id):
+            return None
+
+        if pawn_id is None:
+            pawn_id = self.pos_vec[pawn_pos]
+
+        moves = []
+        if pawn_id < 3:
+            function_tuple = (self.go_up_left, self.go_up_right) if (pawn_id + 1) % 2 == 1 else (self.go_down_left,
+                                                                                                 self.go_down_right)
+            for func in function_tuple:
+                dest = func(pawn_pos)
+                if dest is None:
+                    continue
+                if self.pos_vec[dest] == 0:
+                    moves.append(((pawn_pos, dest), ()))
+
+        else:
+            function_tuple = (self.go_up_left, self.go_down_left, self.go_up_right, self.go_down_right)
+            for func in function_tuple:
+                dest = func(pawn_pos)
+                while True:
+                    if dest is None or self.pos_vec[dest] != 0:
+                        break
+                    else:
+                        moves.append(((pawn_pos, dest), ()))
+                        dest = func(dest)
+        return moves
 
     def possible_captures(self, pawn_pos, pawn_id=None):
         if pawn_id is None:
@@ -259,7 +297,7 @@ class Position:
         return 0 <= tested_id < 32
 
     @classmethod
-    def go_up_left(cls, pos):
+    def go_up_left(cls, pos: int):
         if pos < 4 or pos % 8 == 4:  # either top or left side of the board
             return None
         temp = 1 if pos % 8 > 3 else 0
@@ -267,7 +305,7 @@ class Position:
         return new_pos
 
     @classmethod
-    def go_up_right(cls, pos):
+    def go_up_right(cls, pos: int):
         if pos < 4 or pos % 8 == 3:  # either top or right side of the board
             return None
         temp = 1 if pos % 8 > 3 else 0
@@ -275,7 +313,7 @@ class Position:
         return new_pos
 
     @classmethod
-    def go_down_left(cls, pos):
+    def go_down_left(cls, pos: int):
         if pos > 27 or pos % 8 == 4:  # either bottom or left side of the board
             return None
         temp = 1 if pos % 8 > 3 else 0
@@ -283,7 +321,7 @@ class Position:
         return new_pos
 
     @classmethod
-    def go_down_right(cls, pos):
+    def go_down_right(cls, pos: int):
         if pos > 27 or pos % 8 == 3:  # either bottom or right side of the board
             return None
         temp = 1 if pos % 8 > 3 else 0
