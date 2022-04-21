@@ -10,6 +10,7 @@ STARTING_POS = [1, 1, 1, 1,
                 2, 2, 2, 2,
                 2, 2, 2, 2,
                 2, 2, 2, 2]
+
 DEFAULT_PAWNS = [[0,1,2,3,4,5,6,7,8,9,10,11],[20,21,22,23,24,25,26,27,28,29,30,31], [], []]
 # move = ((START_POS,END_POS),(KILL1, KILL2, ...))
 # all above are tuples (y, x) as cordinates in position matrix
@@ -24,7 +25,7 @@ class Position:
         self.pawns = [[], [], [], []]
         if pos_vec is None:
             self.pos_vec = copy.deepcopy(STARTING_POS)
-            self.pawns = copy.copy(DEFAULT_PAWNS)
+            self.pawns = copy.deepcopy(DEFAULT_PAWNS)
         else:
             self.pos_vec = copy.deepcopy(pos_vec)
             for index, pawn_id in enumerate(self.pos_vec):
@@ -97,8 +98,7 @@ class Position:
         return moves
 
     def set_starting_pos(self):
-        self .pos_vec = copy.deepcopy(STARTING_POS)
-        return self.pos_vec
+        self.__init__()
 
     def all_possible_captures(self):
         capture_list = []
@@ -185,12 +185,11 @@ class Position:
                     else:
                         killed_pos = pos
                         pos = func(pos)
-                        if self.pos_vec[pos] == 0:
+                        if pos is not None and self.pos_vec[pos] == 0:
                             kills.append(killed_pos)
                             continue
                         else:
                             break
-        print(jumps)
         return jumps
 
     def possible_moves(self, pawn_pos: int, pawn_id=None):
@@ -271,8 +270,15 @@ class Position:
 
         return -1
 
-    def get_as_vector(self):
-        return [self.whos_move] + self.pos_vec
+    def get_as_tuple(self):
+        res = [self.whos_move] + self.pos_vec
+        return tuple(res)
+
+    def get_as_biased_tuple(self):
+        pos_vec = [(2*(pawn_id % 2)-1)*((pawn_id + 1)//2) for pawn_id in self.pos_vec]
+        whos_move = - (2*self.whos_move - 1)
+        res = [whos_move] + pos_vec
+        return tuple(res)
 
     def is_pawns_move(self, pawn_pos):
         return self.pos_vec[pawn_pos] != 0 and (self.pos_vec[pawn_pos] + 1) % 2 == self.whos_move

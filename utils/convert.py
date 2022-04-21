@@ -2,7 +2,7 @@
 import numpy as np
 import torch
 from utils.posdict import PosDict
-
+import bitstruct
 
 def pos_list_to_tensor(pos_list: list) -> torch.tensor:
     res = np.array([pos_list[0].get_as_vector()], dtype='float32')
@@ -25,3 +25,9 @@ def pos_vec_turn_normal_to_bias(pos_vec):
     return pos_vec
 
 
+def pos_biased_tup_to_byte_arr(pos_tup):
+    return bitstruct.pack('s3' * len(pos_tup), *pos_tup)
+
+
+def byte_arr_to_pos_biased_tup(byte_arr):
+    return bitstruct.unpack('s3' * 33, * byte_arr)

@@ -30,7 +30,7 @@ class Perch1(Player):   # Fixed values evaluation
             self.lin3 = nn.Linear(layers[1], 1)
             self.last = nn.Sigmoid()
 
-    def choose_move(self, position: Position):  # Need moves[best] won't work (wrong type fix later)
+    def choose_move(self, position: Position, WIN = None):  # Need moves[best] won't work (wrong type fix later)
         with torch.no_grad():
             positions = []
             moves = position.valid_moves()

@@ -55,10 +55,10 @@ INVALID_MOVE = [[WRONG_TILE_ID, WRONG_TILE_ID], []]
 
 # Higlighting
 
-TILE_RECT = pygame.Rect((BOARD_POS[0] + BOARD_BORDER_WIDTH,BOARD_POS[1] + BOARD_BORDER_WIDTH),
-                              (TILE_SIZE, TILE_SIZE))
+TILE_RECT = pygame.Rect((BOARD_POS[0] + BOARD_BORDER_WIDTH, BOARD_POS[1] + BOARD_BORDER_WIDTH),
+                              (TILE_SIZE + 2, TILE_SIZE + 3))
 FRAME_COLOR = (252, 219, 3)
-SHADOW_COLOR = (22, 242, 55, 254)
+SHADOW_COLOR = (245, 117, 100)
 
 # User display constants
 USER_IMAGE_SIZE = 48

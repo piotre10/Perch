@@ -33,4 +33,9 @@ class PosDict:
     def get_dict(self):
         return self.positions
 
+    def get_average_num_games(self):
+        pass
+
+    def get_num_records(self):
+        pass
 
