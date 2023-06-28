@@ -1,6 +1,6 @@
 # Perch
 
-It's project where I create AI to evaluate checkers positions.
+It's project where I create AI to play checkers and also maybe other games in future. Pending (at least partial) rewrite as I want to return to this project after some time.
 
 ### Position.py
 
